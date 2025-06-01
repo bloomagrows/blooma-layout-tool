@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Info, ArrowLeft, ExternalLink, Calendar, Lock, CheckCircle } from 'lucide-react';
+import { Info, ArrowLeft, ExternalLink, Calendar, Lock, CheckCircle, Plus, Trash2 } from 'lucide-react';
 import type { Plant } from '../types';
-import { growingGuides } from '../utils/gardenData';
+import { growingGuides, plantCategories, plantData, plantSpacing, plantHeights, sunRequirements } from '../utils/gardenData';
 import { getGardenTimeline } from '../utils/openai';
 import { saveGardenLayout } from '../utils/supabase';
 import { loadStripe } from '@stripe/stripe-js';
@@ -53,6 +53,14 @@ const GardenLayout: React.FC<GardenLayoutProps> = ({
   const [loadingTimeline, setLoadingTimeline] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selectedPlant, setSelectedPlant] = useState<string>('');
+
+  // Create a flat list of all available plants
+  const allAvailablePlants = Array.from(
+    new Set(
+      Object.values(plantCategories).flat()
+    )
+  ).sort();
 
   const area = width * height;
   const params = new URLSearchParams(window.location.search);
@@ -174,6 +182,86 @@ const GardenLayout: React.FC<GardenLayoutProps> = ({
       console.error('Payment error:', error);
       setError(error instanceof Error ? error.message : 'Payment processing failed');
       setLoading(false);
+    }
+  };
+
+  const handleAddPlant = async () => {
+    if (!selectedPlant || !sessionId || !generationId) return;
+
+    try {
+      // Create a new plant object
+      const newPlant: Plant = {
+        id: `plant-${Date.now()}`,
+        name: selectedPlant,
+        scientificName: 'Placeholder',
+        description: '',
+        companionPlants: [],
+        growingZones: [],
+        spacing: plantSpacing[selectedPlant] || 12,
+        height: plantHeights[selectedPlant] || 24,
+        sunRequirement: sunRequirements[selectedPlant] || 'full',
+        wateringNeeds: 'moderate',
+        seasonality: ['spring', 'summer'],
+        daysToMaturity: 60
+      };
+
+      // Place the plant in the center of the garden
+      const centerX = Math.round((width * 12) / 2);
+      const centerY = Math.round((height * 12) / 2);
+
+      const updatedPlants = [
+        ...plants,
+        {
+          plant: newPlant,
+          x: centerX,
+          y: centerY
+        }
+      ];
+
+      setPlants(updatedPlants);
+
+      // Save the updated layout
+      await saveGardenLayout({
+        session_id: sessionId,
+        layout_data: {
+          plants: updatedPlants,
+          width,
+          height
+        },
+        layout_type: 'user_modified',
+        generation_id: generationId,
+        status: 'completed'
+      });
+    } catch (error) {
+      console.error('Error adding plant:', error);
+      setError('Failed to add plant');
+    }
+  };
+
+  const handleRemovePlant = async (index: number, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent drag start
+
+    if (!sessionId || !generationId) return;
+
+    try {
+      const updatedPlants = plants.filter((_, i) => i !== index);
+      setPlants(updatedPlants);
+
+      // Save the updated layout
+      await saveGardenLayout({
+        session_id: sessionId,
+        layout_data: {
+          plants: updatedPlants,
+          width,
+          height
+        },
+        layout_type: 'user_modified',
+        generation_id: generationId,
+        status: 'completed'
+      });
+    } catch (error) {
+      console.error('Error removing plant:', error);
+      setError('Failed to remove plant');
     }
   };
 
@@ -410,6 +498,28 @@ const GardenLayout: React.FC<GardenLayoutProps> = ({
             <ArrowLeft className="w-4 h-4" />
             <span>Change Plants</span>
           </button>
+
+          <div className="flex gap-2">
+            <select
+              value={selectedPlant}
+              onChange={(e) => setSelectedPlant(e.target.value)}
+              className="px-4 py-2 bg-white text-forest-600 rounded-full border border-spring-leaf-200 focus:outline-none focus:ring-2 focus:ring-spring-leaf-500/50"
+            >
+              <option value="">Select a plant...</option>
+              {allAvailablePlants.map(plant => (
+                <option key={plant} value={plant}>{plant}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleAddPlant}
+              disabled={!selectedPlant}
+              className="flex items-center gap-2 px-4 py-2 bg-spring-leaf-500 text-white rounded-full hover:bg-spring-leaf-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Plant</span>
+            </button>
+          </div>
+
           {onSave && (
             <button
               onClick={() => onSave()}
@@ -463,8 +573,15 @@ const GardenLayout: React.FC<GardenLayoutProps> = ({
                     }`} />
                     
                     <div className="relative z-10">
-                     <BloomaIcon name={item.plant.name} size="lg" />
+                      <BloomaIcon name={item.plant.name} size="lg" />
                     </div>
+
+                    <button
+                      onClick={(e) => handleRemovePlant(index, e)}
+                      className="absolute -top-2 -right-2 p-1 bg-white rounded-full border border-spring-leaf-200 text-heirloom-500 hover:bg-heirloom-50 hover:text-heirloom-600 transition-colors opacity-0 group-hover:opacity-100 z-20"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                     
                     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-20">
                       <div className="bg-white px-4 py-2.5 rounded-xl shadow-lg text-sm whitespace-nowrap border border-spring-leaf-200">
