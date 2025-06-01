@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Info, ArrowLeft, ExternalLink, Calendar, Lock, CheckCircle, Plus, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Info, ArrowLeft, ExternalLink, Calendar, Lock, CheckCircle, Plus, Trash2, ChevronRight, ChevronDown, X } from 'lucide-react';
 import type { Plant } from '../types';
 import { growingGuides, plantCategories, plantData, plantSpacing, plantHeights, sunRequirements } from '../utils/gardenData';
 import { getGardenTimeline } from '../utils/openai';
@@ -678,7 +678,7 @@ const GardenLayout: React.FC<GardenLayoutProps> = ({
               onClick={() => setShowPlantPanel(false)}
               className="p-2 hover:bg-spring-leaf-50 rounded-lg text-forest-600"
             >
-              <ArrowRight className="w-5 h-5" />
+              <X className="w-5 h-5" />
             </button>
           </div>
         </div>
