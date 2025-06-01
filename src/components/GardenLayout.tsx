@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Info, ArrowLeft, ExternalLink, Calendar, Lock, CheckCircle, Plus, Trash2 } from 'lucide-react';
+import { Info, ArrowLeft, ExternalLink, Calendar, Lock, CheckCircle, Plus, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
 import type { Plant } from '../types';
 import { growingGuides, plantCategories, plantData, plantSpacing, plantHeights, sunRequirements } from '../utils/gardenData';
 import { getGardenTimeline } from '../utils/openai';
@@ -53,14 +53,8 @@ const GardenLayout: React.FC<GardenLayoutProps> = ({
   const [loadingTimeline, setLoadingTimeline] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [selectedPlant, setSelectedPlant] = useState<string>('');
-
-  // Create a flat list of all available plants
-  const allAvailablePlants = Array.from(
-    new Set(
-      Object.values(plantCategories).flat()
-    )
-  ).sort();
+  const [showPlantPanel, setShowPlantPanel] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   const area = width * height;
   const params = new URLSearchParams(window.location.search);
@@ -185,21 +179,21 @@ const GardenLayout: React.FC<GardenLayoutProps> = ({
     }
   };
 
-  const handleAddPlant = async () => {
-    if (!selectedPlant || !sessionId || !generationId) return;
+  const handleAddPlant = async (plantName: string) => {
+    if (!sessionId || !generationId) return;
 
     try {
       // Create a new plant object
       const newPlant: Plant = {
         id: `plant-${Date.now()}`,
-        name: selectedPlant,
+        name: plantName,
         scientificName: 'Placeholder',
         description: '',
         companionPlants: [],
         growingZones: [],
-        spacing: plantSpacing[selectedPlant] || 12,
-        height: plantHeights[selectedPlant] || 24,
-        sunRequirement: sunRequirements[selectedPlant] || 'full',
+        spacing: plantSpacing[plantName] || 12,
+        height: plantHeights[plantName] || 24,
+        sunRequirement: sunRequirements[plantName] || 'full',
         wateringNeeds: 'moderate',
         seasonality: ['spring', 'summer'],
         daysToMaturity: 60
@@ -499,26 +493,13 @@ const GardenLayout: React.FC<GardenLayoutProps> = ({
             <span>Change Plants</span>
           </button>
 
-          <div className="flex gap-2">
-            <select
-              value={selectedPlant}
-              onChange={(e) => setSelectedPlant(e.target.value)}
-              className="px-4 py-2 bg-white text-forest-600 rounded-full border border-spring-leaf-200 focus:outline-none focus:ring-2 focus:ring-spring-leaf-500/50"
-            >
-              <option value="">Select a plant...</option>
-              {allAvailablePlants.map(plant => (
-                <option key={plant} value={plant}>{plant}</option>
-              ))}
-            </select>
-            <button
-              onClick={handleAddPlant}
-              disabled={!selectedPlant}
-              className="flex items-center gap-2 px-4 py-2 bg-spring-leaf-500 text-white rounded-full hover:bg-spring-leaf-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Plant</span>
-            </button>
-          </div>
+          <button
+            onClick={() => setShowPlantPanel(!showPlantPanel)}
+            className="flex items-center gap-2 px-4 py-2 bg-spring-leaf-500 text-white rounded-full hover:bg-spring-leaf-600 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Plants</span>
+          </button>
 
           {onSave && (
             <button
@@ -682,6 +663,60 @@ const GardenLayout: React.FC<GardenLayoutProps> = ({
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* Plant Selection Panel */}
+      <div className={`fixed inset-y-0 right-0 w-80 bg-white shadow-xl transform transition-transform duration-300 ${
+        showPlantPanel ? 'translate-x-0' : 'translate-x-full'
+      }`}>
+        <div className="p-4 border-b border-spring-leaf-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-forest-800">Add Plants</h3>
+            <button
+              onClick={() => setShowPlantPanel(false)}
+              className="p-2 hover:bg-spring-leaf-50 rounded-lg text-forest-600"
+            >
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto h-[calc(100vh-64px)]">
+          <div className="p-4 space-y-2">
+            {Object.entries(plantCategories).map(([category, plants]) => (
+              <div key={category}>
+                <button
+                  onClick={() => setActiveCategory(activeCategory === category ? null : category)}
+                  className="w-full flex items-center justify-between p-3 text-left hover:bg-spring-leaf-50 rounded-lg transition-colors"
+                >
+                  <span className="font-medium text-forest-800">{category}</span>
+                  {activeCategory === category ? (
+                    <ChevronDown className="w-5 h-5 text-forest-600" />
+                  ) : (
+                    <ChevronRight className="w-5 h-5 text-forest-600" />
+                  )}
+                </button>
+
+                {activeCategory === category && (
+                  <div className="mt-2 space-y-1 pl-2">
+                    {plants.map(plant => (
+                      <button
+                        key={plant}
+                        onClick={() => handleAddPlant(plant)}
+                        className="w-full flex items-center gap-3 p-2 hover:bg-spring-leaf-50 rounded-lg transition-colors"
+                      >
+                        <div className="w-8 h-8 flex items-center justify-center">
+                          <BloomaIcon name={plant} size="sm" />
+                        </div>
+                        <span className="text-forest-600">{plant}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       </div>
